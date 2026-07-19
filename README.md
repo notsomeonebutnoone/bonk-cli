@@ -4,11 +4,23 @@ bonk any video. paste. bonk. done.
 
 Download videos from YouTube, X/Twitter, Instagram, Threads, TikTok and
 1,800+ other sites — right from your terminal. Paste a url, pick a
-resolution (or audio-only mp3), done. Every video is re-encoded to
-**H.264 High + AAC in MP4** so it imports cleanly into **Adobe Premiere Pro**.
+resolution (or audio-only mp3), done. Files are prepared so they import
+cleanly into **Adobe Premiere Pro** (H.264 + AAC in MP4 when needed).
 
-Terminal UI is the same full-screen Ink TUI experience as
-[yoinks](https://github.com/pablostanley/yoinks) — paste, pick, bonk.
+## Inspired by
+
+**bonk** is inspired by [**yoinks**](https://github.com/pablostanley/yoinks)
+by [**Pablo Stanley**](https://github.com/pablostanley) — the full-screen
+terminal flow of paste → pick a format → download, built with
+[Ink](https://github.com/vadimdemedes/ink).
+
+Huge credit to Pablo for the original idea, UX, and open-source work on
+yoinks. bonk reuses that interaction model and builds its own theming,
+download pipeline (fixed `yt-dlp` base flags, cookies, Premiere-safe
+output), and branding on top.
+
+- yoinks repo: https://github.com/pablostanley/yoinks  
+- Author: [Pablo Stanley](https://github.com/pablostanley) ([@pablostanley](https://github.com/pablostanley))
 
 ## Install / run
 
@@ -17,7 +29,7 @@ No install required — from any directory:
 ```sh
 npx bonk-cli
 npx bonk-cli https://youtu.be/dQw4w9WgXcQ
-npx bonk-cli --theme light
+npx bonk-cli --theme purple
 ```
 
 Or install the CLI globally (command is `bonk`):
@@ -55,7 +67,8 @@ while logged into the sites you need.
 ```sh
 $ bonk https://youtu.be/dQw4w9WgXcQ    # straight to the format picker
 $ bonk                                 # prompts for a url
-$ bonk --theme light                   # force the light palette
+$ bonk --theme light                   # light theme
+$ bonk --theme purple                  # purple accent theme
 ```
 
 bonk takes over the terminal (full-screen, centered — and restores your
@@ -65,9 +78,16 @@ button, the format list and the footer hints are all clickable, and
 clicking the logo takes you back home. Files are saved to `~/Downloads`,
 and the file path is printed to your terminal when you're done.
 
-The default `auto` theme uses your terminal's own foreground and background.
-Press `^t` or click the theme control in the footer to cycle through
-`auto`, `light`, and `dark`.
+### Themes
+
+| Theme | Look |
+|-------|------|
+| `dark` (default) | Near-black with gold accent |
+| `light` | Warm off-white with amber accent |
+| `purple` | Deep violet with purple accent |
+
+Press `^t` or click the theme control in the footer to cycle
+`dark` → `light` → `purple`. Use `--theme <mode>` to start on one of them.
 
 ## Premiere Pro output
 
@@ -94,8 +114,8 @@ and never run a full re-encode.
 ## How it works
 
 - **yt-dlp** with a fixed base command (cookies + node JS runtime + remote EJS components).
-- **ffmpeg** for merge + Premiere-safe re-encode (`ffmpeg-static` fallback).
-- **Ink** — React for the terminal.
+- **ffmpeg** for merge + Premiere-safe handling (`ffmpeg-static` fallback).
+- **Ink** — React for the terminal (same stack family as yoinks).
 
 ## Development
 
@@ -112,6 +132,14 @@ npm run typecheck
 bonk is a personal-archiving / edit-prep tool. Downloading content may
 violate a platform's terms of service — only download what you have the
 right to keep, and be excellent to creators.
+
+## Credits
+
+- **Inspired by** [yoinks](https://github.com/pablostanley/yoinks) by
+  [Pablo Stanley](https://github.com/pablostanley) — original terminal video
+  downloader UX (paste, pick, download).
+- **yt-dlp** — download engine for 1,800+ sites.
+- **Ink** — React for CLIs.
 
 ## License
 
