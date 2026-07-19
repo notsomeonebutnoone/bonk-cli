@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 1280px;
+      height: 640px;
+      font-family: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
+      background: #09090b;
+      color: #fafafa;
+      overflow: hidden;
+      position: relative;
+    }
+    .glow {
+      position: absolute;
+      width: 520px;
+      height: 520px;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.22;
+      pointer-events: none;
+    }
+    .glow-gold { background: #eab308; top: -120px; right: -40px; }
+    .glow-purple { background: #8b5cf6; bottom: -160px; left: -80px; opacity: 0.16; }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      padding: 48px 64px;
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 48px;
+      align-items: center;
+    }
+
+    .mark {
+      color: #eab308;
+      font-size: 18px;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 18px;
+    }
+    .logo {
+      font-size: 96px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 0.95;
+      color: #eab308;
+      text-shadow: 0 0 40px rgba(234, 179, 8, 0.35);
+    }
+    .tagline {
+      margin-top: 22px;
+      font-size: 28px;
+      font-weight: 500;
+      color: #fafafa;
+      letter-spacing: -0.02em;
+    }
+    .sub {
+      margin-top: 12px;
+      font-size: 16px;
+      color: #a1a1aa;
+      line-height: 1.5;
+      max-width: 480px;
+    }
+
+    .themes {
+      margin-top: 36px;
+      display: flex;
+      gap: 12px;
+    }
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid #27272a;
+      background: #111113;
+      font-size: 13px;
+      color: #d4d4d8;
+      font-weight: 500;
+    }
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.06);
+    }
+    .dot-dark { background: #eab308; }
+    .dot-light { background: #a16207; }
+    .dot-purple { background: #a78bfa; }
+
+    .panel {
+      background: #0c0c0f;
+      border: 1px solid rgba(234, 179, 8, 0.45);
+      border-radius: 18px;
+      padding: 22px 24px 20px;
+      box-shadow:
+        0 0 0 1px rgba(234, 179, 8, 0.08),
+        0 30px 80px rgba(0,0,0,0.45);
+      font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace;
+    }
+    .panel-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      color: #eab308;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .panel-title span { color: #71717a; font-weight: 500; }
+    .fake-input {
+      border: 1px solid rgba(234, 179, 8, 0.55);
+      border-radius: 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      overflow: hidden;
+      margin-bottom: 18px;
+    }
+    .fake-input .field {
+      padding: 14px 16px;
+      color: #a1a1aa;
+      font-size: 14px;
+    }
+    .fake-input .btn {
+      background: #eab308;
+      color: #09090b;
+      font-weight: 700;
+      padding: 0 22px;
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+      letter-spacing: 0.02em;
+    }
+    .rows { display: flex; flex-direction: column; gap: 10px; }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-radius: 10px;
+      color: #e4e4e7;
+      font-size: 13px;
+    }
+    .row.active {
+      background: rgba(234, 179, 8, 0.12);
+      color: #eab308;
+      font-weight: 600;
+    }
+    .row span { color: #71717a; font-weight: 500; }
+    .row.active span { color: rgba(234, 179, 8, 0.75); }
+    .bar-wrap { margin-top: 18px; }
+    .bar-label {
+      display: flex;
+      justify-content: space-between;
+      color: #a1a1aa;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .bar {
+      height: 10px;
+      border-radius: 999px;
+      background: #27272a;
+      overflow: hidden;
+    }
+    .bar > i {
+      display: block;
+      height: 100%;
+      width: 68%;
+      background: linear-gradient(90deg, #ca8a04, #eab308);
+      border-radius: 999px;
+    }
+    .footer {
+      margin-top: 16px;
+      color: #71717a;
+      font-size: 11px;
+      letter-spacing: 0.02em;
+    }
+    .footer b { color: #eab308; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="glow glow-gold"></div>
+  <div class="glow glow-purple"></div>
+  <div class="wrap">
+    <div>
+      <div class="mark">◆ bonk-cli</div>
+      <div class="logo">BONK</div>
+      <div class="tagline">bonk any video. paste. bonk. done.</div>
+      <div class="sub">
+        Modern terminal downloader with dark, light, and purple themes —
+        Premiere-ready H.264 + AAC output.
+      </div>
+      <div class="themes">
+        <div class="chip"><i class="dot dot-dark"></i> dark</div>
+        <div class="chip"><i class="dot dot-light"></i> light</div>
+        <div class="chip"><i class="dot dot-purple"></i> purple</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">
+        <div>paste a link</div>
+        <span>theme:dark</span>
+      </div>
+      <div class="fake-input">
+        <div class="field">❯ https://youtube.com/watch?v=…</div>
+        <div class="btn">bonk</div>
+      </div>
+      <div class="rows">
+        <div class="row active"><div>❯ 1080p · mp4</div><span>~42 MB</span></div>
+        <div class="row"><div>  720p · mp4</div><span>~18 MB</span></div>
+        <div class="row"><div>  480p · mp4</div><span>~8 MB</span></div>
+        <div class="row"><div>  audio only · mp3</div><span>~3 MB</span></div>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar-label"><span>downloading…</span><span>68%</span></div>
+        <div class="bar"><i></i></div>
+      </div>
+      <div class="footer"><b>↵</b> bonk  ·  <b>↑↓</b> choose  ·  <b>^t</b> theme</div>
+    </div>
+  </div>
+</body>
+</html>

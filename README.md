@@ -1,5 +1,9 @@
 # bonk
 
+<p align="center">
+  <img src="assets/banner.png" alt="bonk — dark theme with gold accent, paste link UI, resolution picker, and progress bar" width="100%">
+</p>
+
 bonk any video. paste. bonk. done.
 
 Download videos from YouTube, X/Twitter, Instagram, Threads, TikTok and
