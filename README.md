@@ -1,149 +1,128 @@
 # bonk
 
 <p align="center">
-  <img src="assets/banner.png" alt="bonk — dark theme with gold accent, paste link UI, resolution picker, and progress bar" width="100%">
+  <img src="assets/banner.png" alt="bonk — terminal UI with gold accent, link drop, quality picker, and progress" width="100%">
 </p>
 
-bonk any video. paste. bonk. done.
+**bonk** is a full-screen terminal downloader for people who edit. Drop a link, pick a quality (or mp3), get a file Premiere Pro will actually open — no “unsupported compression type” drama.
 
-Download videos from YouTube, X/Twitter, Instagram, Threads, TikTok and
-1,800+ other sites — right from your terminal. Paste a url, pick a
-resolution (or audio-only mp3), done. Files are prepared so they import
-cleanly into **Adobe Premiere Pro** (H.264 + AAC in MP4 when needed).
-
-## Inspired by
-
-**bonk** is inspired by [**yoinks**](https://github.com/pablostanley/yoinks)
-by [**Pablo Stanley**](https://github.com/pablostanley) — the full-screen
-terminal flow of paste → pick a format → download, built with
-[Ink](https://github.com/vadimdemedes/ink).
-
-Huge credit to Pablo for the original idea, UX, and open-source work on
-yoinks. bonk reuses that interaction model and builds its own theming,
-download pipeline (fixed `yt-dlp` base flags, cookies, Premiere-safe
-output), and branding on top.
-
-- yoinks repo: https://github.com/pablostanley/yoinks  
-- Author: [Pablo Stanley](https://github.com/pablostanley) ([@pablostanley](https://github.com/pablostanley))
-
-## Install / run
-
-No install required — from any directory:
+YouTube, X, Instagram, Threads, TikTok, and ~1,800 other sites via [yt-dlp](https://github.com/yt-dlp/yt-dlp). Playlists included: download the whole lineup or choose one clip, then pick the format.
 
 ```sh
 npx bonk-cli
-npx bonk-cli https://youtu.be/dQw4w9WgXcQ
-npx bonk-cli --theme purple
+npx bonk-cli 'https://youtu.be/dQw4w9WgXcQ'
+bonk --update   # refresh the bundled yt-dlp
 ```
 
-Or install the CLI globally (command is `bonk`):
+## Why bonk exists
+
+Most “download this video” tools dump whatever the CDN hands you. On YouTube that often means **VP9 / AV1** wrapped in a `.mp4` — and Premiere refuses it.
+
+bonk prefers native **H.264 + AAC**, and only re-encodes when it has to (`veryfast` x264). Cookies, Node JS runtime flags, and remote EJS components are always on so modern sites keep working.
+
+| What arrived | What you get | Cost |
+|--------------|--------------|------|
+| H.264 + AAC MP4 | keep / rename | basically free |
+| H.264 + other audio | copy video, AAC audio | quick |
+| VP9 / AV1 | H.264 re-encode | slower, only when needed |
+
+## Install
+
+**npm package name is `bonk-cli`** (plain `bonk` was already taken). The command is still `bonk`.
 
 ```sh
+# one-shot
+npx bonk-cli
+
+# global
 npm install -g bonk-cli
 bonk
 ```
 
-> The unscoped name `bonk` is already taken on npm (unrelated 2012 package),
-> so this ships as **`bonk-cli`**. The binary is still named `bonk`.
+**Needs:** Node 18+, `ffmpeg` on PATH (or the bundled `ffmpeg-static`), and a Netscape **`cookies.txt`**.
 
-Requires **Node 18+**, **yt-dlp** (auto-fetched on first run if missing),
-**ffmpeg** (PATH or bundled `ffmpeg-static`), and a **cookies.txt** file
-in the directory you run from (or `~/.bonk/cookies.txt`).
+### cookies.txt
 
-## cookies.txt
-
-Bonk always downloads with:
+bonk always runs yt-dlp like this:
 
 ```sh
 yt-dlp --cookies cookies.txt --js-runtimes node --remote-components ejs:github [URL]
 ```
 
-Place a Netscape-format cookies export at one of:
+Put the export at either:
 
-- `./cookies.txt` (current working directory — preferred)
+- `./cookies.txt` (cwd — preferred)
 - `~/.bonk/cookies.txt`
 
-Export cookies with a browser extension (e.g. “Get cookies.txt LOCALLY”)
-while logged into the sites you need.
+Browser extensions such as “Get cookies.txt LOCALLY” work while you’re logged into the sites you care about.
 
-## Usage
+## Commands
 
 ```sh
-$ bonk https://youtu.be/dQw4w9WgXcQ    # straight to the format picker
-$ bonk                                 # prompts for a url
-$ bonk --theme light                   # light theme
-$ bonk --theme purple                  # purple accent theme
+bonk                              # interactive — drop a link
+bonk <url>                        # jump straight into the flow
+bonk <playlist-url>               # download all or pick one, then choose quality
+bonk --theme dark|light|purple    # start on a palette
+bonk -U / --update                # self-update ~/.bonk/bin/yt-dlp
+bonk -h / -v                      # help / version
 ```
 
-bonk takes over the terminal (full-screen, centered — and restores your
-scrollback on exit). Pick a format with ↑/↓ (or j/k, or number keys) and
-hit enter. `esc` goes back, `^c` quits. Or just use the mouse — the bonk
-button, the format list and the footer hints are all clickable, and
-clicking the logo takes you back home. Files are saved to `~/Downloads`,
-and the file path is printed to your terminal when you're done.
+Inside the TUI:
+
+| Input | Action |
+|-------|--------|
+| `↵` | bonk / confirm |
+| `↑` `↓` | move in lists |
+| `⇥` | pull a link from the clipboard (when offered) |
+| `esc` | back / cancel |
+| `^t` | cycle theme |
+| `^c` | quit |
+| mouse | button, lists, footer, logo (home) |
+
+Files land in **`~/Downloads`**. The final path is printed when you leave the full-screen UI.
 
 ### Themes
 
-| Theme | Look |
-|-------|------|
-| `dark` (default) | Near-black with gold accent |
-| `light` | Warm off-white with amber accent |
-| `purple` | Deep violet with purple accent |
+| Mode | Vibe |
+|------|------|
+| `dark` (default) | near-black + gold |
+| `light` | warm paper + amber |
+| `purple` | deep violet + lilac |
 
-Press `^t` or click the theme control in the footer to cycle
-`dark` → `light` → `purple`. Use `--theme <mode>` to start on one of them.
+### Updating yt-dlp
 
-## Premiere Pro output
-
-YouTube’s high-quality streams are often **VP9 (`vp09`)** or **AV1** inside an
-`.mp4`. Premiere reports that as **“unsupported compression type”**.
-
-Bonk always downloads with the exclusive base command:
+On first need, bonk can install a private binary under `~/.bonk/bin`. Keep it current with:
 
 ```sh
-yt-dlp --cookies cookies.txt --js-runtimes node --remote-components ejs:github [URL]
+bonk --update
+# same as: bonk -U   → runs yt-dlp -U on the bundled binary
 ```
 
-Then it makes the file Premiere-safe **as fast as possible**:
+## Under the hood
 
-| Source codecs | What bonk does | Speed |
-|---------------|----------------|-------|
-| H.264 + AAC MP4 (preferred) | rename / keep | same as plain yt-dlp |
-| H.264 + other audio | stream-copy video, AAC audio only | fast |
-| VP9 / AV1 | re-encode H.264 `-preset veryfast` | slower (only when needed) |
+- **yt-dlp** — fixed base flags (cookies + node runtime + remote EJS)
+- **ffmpeg** — merge + Premiere-safe pass (`ffmpeg-static` fallback)
+- **Ink** — React for the terminal UI
 
-Format selection prefers **native H.264** so most downloads take the instant path
-and never run a full re-encode.
-
-## How it works
-
-- **yt-dlp** with a fixed base command (cookies + node JS runtime + remote EJS components).
-- **ffmpeg** for merge + Premiere-safe handling (`ffmpeg-static` fallback).
-- **Ink** — React for the terminal (same stack family as yoinks).
-
-## Development
+## Develop
 
 ```sh
 npm install
-npm run build        # bundle to dist/ with tsup
-npm run dev          # rebuild on change
+npm run build
+npm run dev
 node dist/cli.js <url>
-npm run typecheck
+npm test && npm run typecheck
 ```
 
-## A note on fair use
+## Fair use
 
-bonk is a personal-archiving / edit-prep tool. Downloading content may
-violate a platform's terms of service — only download what you have the
-right to keep, and be excellent to creators.
+bonk is for personal archives and edit prep. Only grab media you’re allowed to keep. Be decent to creators.
 
 ## Credits
 
-- **Inspired by** [yoinks](https://github.com/pablostanley/yoinks) by
-  [Pablo Stanley](https://github.com/pablostanley) — original terminal video
-  downloader UX (paste, pick, download).
-- **yt-dlp** — download engine for 1,800+ sites.
-- **Ink** — React for CLIs.
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) — the download engine
+- [Ink](https://github.com/vadimdemedes/ink) — terminal React
+- Nods to [yoinks](https://github.com/pablostanley/yoinks) by [Pablo Stanley](https://github.com/pablostanley) for popularizing a full-screen paste → pick → download flow in the terminal
 
 ## License
 

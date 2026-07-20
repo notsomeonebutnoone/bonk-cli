@@ -6,13 +6,14 @@ import {captureFrames} from './lib/click-map.js'
 import {parseArgs} from './lib/args.js'
 import {readClipboard} from './lib/clipboard.js'
 import {isProbablyUrl} from './lib/platforms.js'
+import {updateYtDlp} from './lib/ytdlp.js'
 
 // read at runtime from the shipped package.json so npm version bumps
 // can't drift from a hardcoded constant
 const VERSION: string = createRequire(import.meta.url)('../package.json').version
 
 const HELP = `
-  bonk — bonk any video. paste. bonk. done.
+  bonk — drop a link. bonk it. premiere won’t flinch.
 
   Usage
     $ bonk [url]
@@ -20,17 +21,21 @@ const HELP = `
 
   Examples
     $ bonk https://youtu.be/dQw4w9WgXcQ
+    $ bonk https://youtube.com/playlist?list=…
     $ bonk https://x.com/user/status/123456
-    $ bonk                 (prompts for a url)
+    $ bonk                 (interactive)
+    $ bonk --update        (refresh bundled yt-dlp)
 
   Options
     --theme <mode>  dark (default), light, or purple
-    -h, --help      show this help
-    -v, --version   show version
+    -U, --update    self-update ~/.bonk/bin/yt-dlp (yt-dlp -U)
+    -h, --help      this help
+    -v, --version   version
 
-  Downloads are saved to ~/Downloads as Premiere-ready H.264/AAC MP4.
-  Requires cookies.txt (cwd or ~/.bonk/cookies.txt).
-  Powered by yt-dlp — YouTube, X, Instagram, Threads, TikTok & 1800+ sites.
+  Saves to ~/Downloads as edit-ready H.264/AAC MP4 when possible.
+  Playlists: download every clip or pick one, then choose a quality.
+  Needs cookies.txt (cwd or ~/.bonk/cookies.txt).
+  yt-dlp under the hood — YouTube, X, IG, Threads, TikTok & ~1800 sites.
 `
 
 const args = parseArgs(process.argv.slice(2))
@@ -48,6 +53,21 @@ if (args.help) {
 if (args.version) {
   console.log(VERSION)
   process.exit(0)
+}
+
+if (args.update) {
+  try {
+    const result = await updateYtDlp(message => {
+      process.stderr.write(`${message}\n`)
+    })
+    const action = result.installed ? 'installed' : 'updated'
+    console.log(`✓ yt-dlp ${action} → ${result.version}`)
+    console.log(`  ${result.path}`)
+    process.exit(0)
+  } catch (error) {
+    console.error(`bonk: ${error instanceof Error ? error.message : String(error)}`)
+    process.exit(1)
+  }
 }
 
 const initialUrl = args.initialUrl
@@ -97,5 +117,5 @@ await waitUntilExit()
 
 if (isTTY) leaveAltScreen()
 if (outcome.filepath) {
-  console.log(`✓ bonked → ${outcome.filepath}`)
+  console.log(`✓ bonked · ${outcome.filepath}`)
 }

@@ -1,7 +1,7 @@
 {
   "name": "bonk-cli",
   "version": "0.1.1",
-  "description": "bonk any video from YouTube, X, Instagram, Threads & 1800+ sites — Premiere Pro ready, right from your terminal.",
+  "description": "Terminal video downloader for editors — drop a link, pick quality, get Premiere-ready H.264/AAC. Playlists, cookies, yt-dlp.",
   "type": "module",
   "bin": {
     "bonk": "dist/cli.js"

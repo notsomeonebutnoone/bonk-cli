@@ -22,7 +22,7 @@ test('themes paint native border cells with the theme background', async () => {
           {
             mode,
             children: React.createElement(Panel, {
-              title: 'Download',
+              title: 'Quality',
               width: 20,
               children: React.createElement(Text, null, 'item'),
             }),
