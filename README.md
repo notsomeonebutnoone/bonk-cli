@@ -8,7 +8,7 @@
 
 **bonk** is a full-screen terminal tool for editors, creators, researchers, and archivists. Give it a media URL you are permitted to access and copy, choose a quality (or audio-only MP3), and get a local file prepared for smooth import into Adobe Premiere Pro—H.264/AAC in MP4 when conversion is needed.
 
-Powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp), bonk works with YouTube, X/Twitter, Instagram, Threads, TikTok, and roughly 1,800 other supported sites. Playlist URLs can download every available clip or one selected entry. Site support is technical compatibility, not permission to download, and bonk is not affiliated with or endorsed by any supported platform.
+Powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp), bonk works with YouTube, X/Twitter, Instagram, Threads, TikTok, Snapchat and many more sites. Playlist URLs can download every available clip or one selected entry. Site support is technical compatibility, not permission to download, and bonk is not affiliated with or endorsed by any supported platform.
 
 ```sh
 npx bonk-cli
@@ -84,11 +84,12 @@ Inside the TUI:
 | `↑` `↓` | move in lists |
 | `⇥` | pull a link from the clipboard (when offered) |
 | `esc` | back / cancel |
+| `^l` | choose and remember the download folder |
 | `^t` | cycle theme |
 | `^c` | quit |
 | mouse | button, lists, footer, logo (home) |
 
-Files land in **`~/Downloads`**. The final path is printed when you leave the full-screen UI.
+Files land in **`~/Downloads`** by default. Press `^l` from an idle or selection screen to choose another folder; bonk creates it when needed and remembers it for future launches. The final path is printed when you leave the full-screen UI.
 
 ### Themes
 
