@@ -20,6 +20,7 @@
     "dev": "tsup --watch",
     "test": "tsx --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit",
+    "prestart": "npm run build",
     "start": "node dist/cli.js",
     "prepack": "npm run build",
     "prepublishOnly": "npm test && npm run typecheck && npm run build"
