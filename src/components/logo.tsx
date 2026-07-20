@@ -11,6 +11,10 @@ const ART = [
 const GRID = ART.map(line => [...line])
 const ROWS = GRID.length
 
+// Includes the diamond above the three wordmark rows. Exported for the newer
+// responsive layout's pointer bounds; it does not change the original art.
+export const LOGO_HEIGHT = ROWS + 1
+
 // Light modern intro — short fade-in, no heavy CRT noise
 const INTRO_MS = 600
 const INTRO_SPREAD_MS = 350
@@ -61,7 +65,7 @@ function renderRow(row: number, phase: Phase, t: number, delays: number[], theme
   ))
 }
 
-export function Logo() {
+export function Logo(_props: {compact?: boolean} = {}) {
   const theme = useTheme()
   const animated = Boolean(process.stdout.isTTY)
   const delays = useMemo(

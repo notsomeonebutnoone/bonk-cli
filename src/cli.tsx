@@ -34,8 +34,9 @@ const HELP = `
 
   Saves to ~/Downloads as edit-ready H.264/AAC MP4 when possible.
   Playlists: download every clip or pick one, then choose a quality.
+  Press Ctrl+L in the app to choose and remember the download folder.
   Needs cookies.txt (cwd or ~/.bonk/cookies.txt).
-  yt-dlp under the hood — YouTube, X, IG, Threads, TikTok & ~1800 sites.
+  yt-dlp under the hood — YouTube, X, IG, Threads, TikTok, and Snapchat.
 `
 
 const args = parseArgs(process.argv.slice(2))

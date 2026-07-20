@@ -58,17 +58,20 @@ test('recognizes only supported modes and cycles through all of them', () => {
 })
 
 test('each theme owns a full modern palette with accent', () => {
-  assert.equal(themeFor('dark').background, '#09090b')
-  assert.equal(themeFor('dark').accent, '#EAB308')
+  assert.equal(themeFor('dark').background, '#070A0F')
+  assert.equal(themeFor('dark').accent, '#22D3EE')
   assert.equal(themeFor('light').background, '#FAFAF9')
-  assert.equal(themeFor('light').accent, '#A16207')
+  assert.equal(themeFor('light').accent, '#0891B2')
   assert.equal(themeFor('purple').background, '#0C0A14')
   assert.equal(themeFor('purple').accent, '#A78BFA')
   for (const mode of ['dark', 'light', 'purple'] as const) {
     const t = themeFor(mode)
     assert.ok(t.primary)
     assert.ok(t.accent)
+    assert.ok(t.accentSecondary)
     assert.ok(t.muted)
     assert.ok(t.border)
+    assert.ok(t.surface)
+    assert.equal(t.logoGradient.length, 5)
   }
 })

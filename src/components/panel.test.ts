@@ -32,8 +32,8 @@ test('themes paint native border cells with the theme background', async () => {
 
     // light: #FAFAF9 = 250,250,249
     assert.match(renderPanel('light'), /\x1b\[48;2;250;250;249m/)
-    // dark: #09090b = 9,9,11
-    assert.match(renderPanel('dark'), /\x1b\[48;2;9;9;11m/)
+    // dark: #070A0F = 7,10,15
+    assert.match(renderPanel('dark'), /\x1b\[48;2;7;10;15m/)
     // purple: #0C0A14 = 12,10,20
     assert.match(renderPanel('purple'), /\x1b\[48;2;12;10;20m/)
   } finally {

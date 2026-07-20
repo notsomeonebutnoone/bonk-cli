@@ -2,7 +2,7 @@ import React, {type ReactNode} from 'react'
 import {Text} from 'ink'
 import {useTheme} from '../theme.js'
 
-/** Keys in accent, labels muted, airy separators. */
+/** Compact keycaps with quiet labels. */
 export function Shortcuts({items, leading}: {items: Array<[key: string, label: string]>; leading?: ReactNode}) {
   const theme = useTheme()
   return (
@@ -10,13 +10,13 @@ export function Shortcuts({items, leading}: {items: Array<[key: string, label: s
       {leading ? (
         <>
           {leading}
-          <Text color={theme.muted}>{'  ·  '}</Text>
+          <Text color={theme.border}>{'   │   '}</Text>
         </>
       ) : null}
       {items.map(([key, label], index) => (
         <Text key={`${key}-${label}`}>
-          {index > 0 ? <Text color={theme.muted}>{'  ·  '}</Text> : null}
-          <Text color={theme.accent}>{key}</Text>
+          {index > 0 ? <Text color={theme.border}>{'   '}</Text> : null}
+          <Text color={theme.accent} backgroundColor={theme.surfaceAlt} bold>{` ${key} `}</Text>
           <Text color={theme.muted}> {label}</Text>
         </Text>
       ))}
