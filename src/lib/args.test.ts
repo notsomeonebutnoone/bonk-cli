@@ -7,6 +7,7 @@ test('parses a url and a spaced theme option without confusing the value for the
   assert.deepEqual(parseArgs(['--theme', 'light', 'https://example.com/video']), {
     help: false,
     version: false,
+    update: false,
     themeMode: 'light',
     initialUrl: 'https://example.com/video',
   })
@@ -16,9 +17,26 @@ test('parses an equals-style theme option after the url', () => {
   assert.deepEqual(parseArgs(['https://example.com/video', '--theme=purple']), {
     help: false,
     version: false,
+    update: false,
     themeMode: 'purple',
     initialUrl: 'https://example.com/video',
   })
+})
+
+test('parses -U / --update for bundled yt-dlp self-update', () => {
+  assert.deepEqual(parseArgs(['--update']), {
+    help: false,
+    version: false,
+    update: true,
+    initialUrl: undefined,
+  })
+  assert.deepEqual(parseArgs(['-U']), {
+    help: false,
+    version: false,
+    update: true,
+    initialUrl: undefined,
+  })
+  assert.match(parseArgs(['--update', 'https://example.com']).error ?? '', /does not take a url/)
 })
 
 test('rejects missing, invalid, and unknown options', () => {

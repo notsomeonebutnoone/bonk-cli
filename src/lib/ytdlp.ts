@@ -86,6 +86,11 @@ function ytDlpAssetName(): string {
   return process.arch === 'arm64' ? 'yt-dlp_linux_aarch64' : 'yt-dlp_linux'
 }
 
+/** Absolute path of the yt-dlp binary bonk keeps under ~/.bonk/bin. */
+export function bundledYtDlpPath(): string {
+  return path.join(BONK_DIR, process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp')
+}
+
 function commandWorks(cmd: string, args: string[]): Promise<boolean> {
   return new Promise(resolve => {
     let child
@@ -100,13 +105,38 @@ function commandWorks(cmd: string, args: string[]): Promise<boolean> {
   })
 }
 
-export async function ensureYtDlp(onStatus: (message: string) => void, signal?: AbortSignal): Promise<string> {
-  if (await commandWorks('yt-dlp', ['--version'])) return 'yt-dlp'
+function runCommand(
+  cmd: string,
+  args: string[],
+  signal?: AbortSignal,
+): Promise<{code: number | null; stdout: string; stderr: string}> {
+  return new Promise((resolve, reject) => {
+    let child
+    try {
+      child = spawn(cmd, args, {signal})
+    } catch (error) {
+      reject(error)
+      return
+    }
+    let stdout = ''
+    let stderr = ''
+    child.stdout?.on('data', chunk => (stdout += chunk))
+    child.stderr?.on('data', chunk => (stderr += chunk))
+    child.on('error', reject)
+    child.on('close', code => resolve({code, stdout, stderr}))
+  })
+}
 
-  const local = path.join(BONK_DIR, process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp')
-  if (await commandWorks(local, ['--version'])) return local
+async function ytDlpVersion(ytdlp: string): Promise<string> {
+  const {code, stdout, stderr} = await runCommand(ytdlp, ['--version'])
+  if (code !== 0) throw new Error(stderr.trim() || 'Could not read yt-dlp version.')
+  return (stdout || stderr).trim().split('\n')[0]?.trim() || 'unknown'
+}
 
-  onStatus('first run: fetching yt-dlp…')
+/** Download the platform binary into ~/.bonk/bin (used on first run and by --update). */
+async function fetchBundledYtDlp(onStatus: (message: string) => void, signal?: AbortSignal): Promise<string> {
+  const local = bundledYtDlpPath()
+  onStatus('snagging yt-dlp…')
   await fs.mkdir(BONK_DIR, {recursive: true})
 
   const url = `${RELEASE_BASE}/${ytDlpAssetName()}`
@@ -120,6 +150,54 @@ export async function ensureYtDlp(onStatus: (message: string) => void, signal?: 
   await fs.chmod(tmp, 0o755)
   await fs.rename(tmp, local)
   return local
+}
+
+export async function ensureYtDlp(onStatus: (message: string) => void, signal?: AbortSignal): Promise<string> {
+  if (await commandWorks('yt-dlp', ['--version'])) return 'yt-dlp'
+
+  const local = bundledYtDlpPath()
+  if (await commandWorks(local, ['--version'])) return local
+
+  onStatus('first run — snagging yt-dlp…')
+  return fetchBundledYtDlp(onStatus, signal)
+}
+
+export type YtDlpUpdateResult = {
+  /** Path to the binary that was updated (or freshly installed). */
+  path: string
+  /** Version string after the update. */
+  version: string
+  /** Whether a brand-new binary was downloaded instead of `yt-dlp -U`. */
+  installed: boolean
+}
+
+/**
+ * Self-update the bundled yt-dlp under ~/.bonk/bin via `yt-dlp -U`.
+ * Installs it first if missing, then runs the in-place updater.
+ */
+export async function updateYtDlp(
+  onStatus: (message: string) => void = () => {},
+  signal?: AbortSignal,
+): Promise<YtDlpUpdateResult> {
+  const local = bundledYtDlpPath()
+  let installed = false
+
+  if (!(await commandWorks(local, ['--version']))) {
+    await fetchBundledYtDlp(onStatus, signal)
+    installed = true
+  } else {
+    onStatus('buffing yt-dlp…')
+    // yt-dlp's own self-updater replaces the binary in place
+    const {code, stdout, stderr} = await runCommand(local, ['-U'], signal)
+    if (signal?.aborted) throw new Error('Update cancelled.')
+    if (code !== 0) {
+      const detail = (stderr || stdout).trim()
+      throw new Error(detail || `yt-dlp -U failed (exit ${code}).`)
+    }
+  }
+
+  const version = await ytDlpVersion(local)
+  return {path: local, version, installed}
 }
 
 /**
@@ -147,6 +225,21 @@ export type VideoInfo = {
   formats?: RawFormat[]
 }
 
+/** One video listed inside a playlist (from a flat yt-dlp listing). */
+export type PlaylistEntry = {
+  id: string
+  title: string
+  url: string
+  duration?: number
+  uploader?: string
+}
+
+export type PlaylistInfo = {
+  title: string
+  uploader?: string
+  entries: PlaylistEntry[]
+}
+
 type RawFormat = {
   format_id: string
   ext?: string
@@ -160,17 +253,101 @@ type RawFormat = {
   filesize_approx?: number
 }
 
+/** Raw entry shape from yt-dlp -J --flat-playlist (fields vary by extractor). */
+type RawPlaylistEntry = {
+  id?: string
+  title?: string
+  url?: string
+  webpage_url?: string
+  duration?: number
+  uploader?: string
+  channel?: string
+  ie_key?: string
+  _type?: string
+} | null
+
+type RawProbeJson = VideoInfo & {
+  _type?: string
+  entries?: RawPlaylistEntry[]
+  uploader?: string
+  channel?: string
+}
+
 export type ProbeResult = {
   info: VideoInfo
   infoJsonPath: string
 }
 
-export async function probe(ytdlp: string, url: string, signal?: AbortSignal): Promise<ProbeResult> {
-  assertCookiesPresent()
-  // Exact base + probe flags + URL only
-  const args = [...baseYtDlpArgs(), '-J', '--no-playlist', '--no-warnings', url]
+export type ProbeOutcome =
+  | {kind: 'video'; info: VideoInfo; infoJsonPath: string}
+  | {kind: 'playlist'; playlist: PlaylistInfo}
 
-  const stdout = await new Promise<string>((resolve, reject) => {
+/**
+ * Probe a URL. Playlists surface a video picker; single videos (or one-entry
+ * playlists) go straight to the format picker with full metadata.
+ */
+export async function probe(ytdlp: string, url: string, signal?: AbortSignal): Promise<ProbeOutcome> {
+  assertCookiesPresent()
+  // Flat listing keeps multi-video playlists cheap; single videos still get full JSON.
+  const args = [...baseYtDlpArgs(), '-J', '--flat-playlist', '--no-warnings', url]
+  const stdout = await spawnYtDlpJson(ytdlp, args, signal)
+
+  let raw: RawProbeJson
+  try {
+    raw = JSON.parse(stdout) as RawProbeJson
+  } catch {
+    throw new Error('Could not parse video info from yt-dlp.')
+  }
+
+  if (raw._type === 'playlist' || Array.isArray(raw.entries)) {
+    const entries = (raw.entries ?? [])
+      .map(normalizePlaylistEntry)
+      .filter((entry): entry is PlaylistEntry => entry !== undefined)
+
+    if (entries.length === 0) {
+      throw new Error('That playlist has no downloadable videos.')
+    }
+
+    // One entry → treat as a single video (full format probe).
+    if (entries.length === 1) {
+      return probeVideo(ytdlp, entries[0]!.url, signal)
+    }
+
+    return {
+      kind: 'playlist',
+      playlist: {
+        title: raw.title || 'Playlist',
+        uploader: raw.uploader ?? raw.channel,
+        entries,
+      },
+    }
+  }
+
+  const infoJsonPath = path.join(os.tmpdir(), `bonk-info-${process.pid}-${Date.now()}.json`)
+  await fs.writeFile(infoJsonPath, stdout)
+  return {kind: 'video', info: raw, infoJsonPath}
+}
+
+/** Full metadata for one video — never expands a surrounding playlist. */
+export async function probeVideo(ytdlp: string, url: string, signal?: AbortSignal): Promise<ProbeResult & {kind: 'video'}> {
+  assertCookiesPresent()
+  const args = [...baseYtDlpArgs(), '-J', '--no-playlist', '--no-warnings', url]
+  const stdout = await spawnYtDlpJson(ytdlp, args, signal)
+
+  let info: VideoInfo
+  try {
+    info = JSON.parse(stdout) as VideoInfo
+  } catch {
+    throw new Error('Could not parse video info from yt-dlp.')
+  }
+
+  const infoJsonPath = path.join(os.tmpdir(), `bonk-info-${process.pid}-${Date.now()}.json`)
+  await fs.writeFile(infoJsonPath, stdout)
+  return {kind: 'video', info, infoJsonPath}
+}
+
+function spawnYtDlpJson(ytdlp: string, args: string[], signal?: AbortSignal): Promise<string> {
+  return new Promise((resolve, reject) => {
     const child = spawn(ytdlp, args, {signal})
     let out = ''
     let stderr = ''
@@ -185,22 +362,46 @@ export async function probe(ytdlp: string, url: string, signal?: AbortSignal): P
       }
     })
   })
+}
 
-  let info: VideoInfo
-  try {
-    info = JSON.parse(stdout) as VideoInfo
-  } catch {
-    throw new Error('Could not parse video info from yt-dlp.')
+/** Build a clickable/downloadable URL for a flat-playlist entry. */
+export function normalizePlaylistEntry(entry: RawPlaylistEntry): PlaylistEntry | undefined {
+  if (!entry || typeof entry !== 'object') return undefined
+  // yt-dlp inserts null placeholders for unavailable / private items
+  if (entry._type === 'playlist') return undefined
+
+  const id = entry.id?.trim()
+  const webpage = entry.webpage_url?.trim()
+  const rawUrl = entry.url?.trim()
+  let url = webpage || (rawUrl && /^https?:\/\//i.test(rawUrl) ? rawUrl : undefined)
+
+  if (!url && id) {
+    const ie = (entry.ie_key ?? '').toLowerCase()
+    if (ie === 'youtube' || ie === 'youtubetab' || !ie) {
+      // YouTube is the common playlist case; bare ids from other sites are skipped
+      if (ie === 'youtube' || ie === 'youtubetab' || /^[\w-]{6,}$/.test(id)) {
+        url = `https://www.youtube.com/watch?v=${id}`
+      }
+    }
   }
 
-  const infoJsonPath = path.join(os.tmpdir(), `bonk-info-${process.pid}-${Date.now()}.json`)
-  await fs.writeFile(infoJsonPath, stdout)
-  return {info, infoJsonPath}
+  if (!url) return undefined
+
+  const title = (entry.title?.trim() || id || 'Untitled').replace(/\s+/g, ' ')
+  return {
+    id: id || url,
+    title,
+    url,
+    duration: typeof entry.duration === 'number' ? entry.duration : undefined,
+    uploader: entry.uploader ?? entry.channel,
+  }
 }
 
 export type DownloadChoice = {
   label: string
   kind: 'video' | 'audio'
+  /** Approximate bytes represented by the label, when yt-dlp provides enough metadata. */
+  estimatedBytes?: number
   /** Extra yt-dlp args after the exclusive base command. */
   args: string[]
   /** When true, re-encode the download to Premiere-safe H.264/AAC MP4 via ffmpeg. */
@@ -214,7 +415,7 @@ export type DownloadChoice = {
 const STANDARD_HEIGHTS = [2160, 1440, 1080, 720, 480, 360, 240, 144] as const
 
 /**
- * Build resolution choices (yoinks-style list).
+ * Build resolution choices for the quality panel.
  * Labels: `1080p · mp4 · ~12 MB` — clean, one row per standard rung.
  * Files still finish as Premiere-safe H.264 + AAC MP4 after download.
  */
@@ -252,8 +453,8 @@ export function buildChoices(info: VideoInfo): DownloadChoice[] {
     const sizeLabel = size > 0 ? ` · ~${formatBytes(size)}` : ''
     choices.push({
       kind: 'video',
-      // same shape as yoinks: "1080p · mp4 · ~12 MB"
       label: `${height}p · mp4${sizeLabel}`,
+      estimatedBytes: size > 0 ? size : undefined,
       premiereEncode: true,
       args: downloadFormatArgs(height),
     })
@@ -272,11 +473,40 @@ export function buildChoices(info: VideoInfo): DownloadChoice[] {
   choices.push({
     kind: 'audio',
     label: `audio only · mp3${audioSizeLabel}`,
+    estimatedBytes: audioSize,
     premiereEncode: false,
     args: ['-f', 'ba/b', '-x', '--audio-format', 'mp3', '--audio-quality', '0'],
   })
 
   return choices
+}
+
+/**
+ * Turn one video's format-size estimates into playlist totals using duration.
+ * Flat playlist metadata gives us every clip's duration without the very slow
+ * cost of fully probing every entry. If any duration is unavailable, omit the
+ * size instead of misleadingly showing the first video's size as the total.
+ */
+export function buildPlaylistChoices(info: VideoInfo, entries: PlaylistEntry[]): DownloadChoice[] {
+  const choices = buildChoices(info)
+  const firstDuration = info.duration
+  const hasEveryDuration = entries.length > 0 && entries.every(entry => entry.duration && entry.duration > 0)
+  const totalDuration = hasEveryDuration
+    ? entries.reduce((total, entry) => total + (entry.duration ?? 0), 0)
+    : undefined
+
+  return choices.map(choice => {
+    const labelWithoutSize = choice.label.replace(/ · ~[\d.]+ [KMGT]?B$/, '')
+    if (!firstDuration || !totalDuration || !choice.estimatedBytes) {
+      return {...choice, label: labelWithoutSize, estimatedBytes: undefined}
+    }
+    const estimatedBytes = choice.estimatedBytes * (totalDuration / firstDuration)
+    return {
+      ...choice,
+      label: `${labelWithoutSize} · ~${formatBytes(estimatedBytes)}`,
+      estimatedBytes,
+    }
+  })
 }
 
 /** Snap 1078 / 1080 / 1090 → 1080p; reject weird outliers that match nothing. */

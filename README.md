@@ -1,149 +1,188 @@
 # bonk
 
 <p align="center">
-  <img src="assets/banner.png" alt="bonk — dark theme with gold accent, paste link UI, resolution picker, and progress bar" width="100%">
+  <img src="assets/banner.png" alt="bonk — terminal UI with gold accent, link drop, quality picker, and progress" width="100%">
 </p>
 
-bonk any video. paste. bonk. done.
+**Bring authorized media into your edit without fighting the codec.**
 
-Download videos from YouTube, X/Twitter, Instagram, Threads, TikTok and
-1,800+ other sites — right from your terminal. Paste a url, pick a
-resolution (or audio-only mp3), done. Files are prepared so they import
-cleanly into **Adobe Premiere Pro** (H.264 + AAC in MP4 when needed).
+**bonk** is a full-screen terminal tool for editors, creators, researchers, and archivists. Give it a media URL you are permitted to access and copy, choose a quality (or audio-only MP3), and get a local file prepared for smooth import into Adobe Premiere Pro—H.264/AAC in MP4 when conversion is needed.
 
-## Inspired by
-
-**bonk** is inspired by [**yoinks**](https://github.com/pablostanley/yoinks)
-by [**Pablo Stanley**](https://github.com/pablostanley) — the full-screen
-terminal flow of paste → pick a format → download, built with
-[Ink](https://github.com/vadimdemedes/ink).
-
-Huge credit to Pablo for the original idea, UX, and open-source work on
-yoinks. bonk reuses that interaction model and builds its own theming,
-download pipeline (fixed `yt-dlp` base flags, cookies, Premiere-safe
-output), and branding on top.
-
-- yoinks repo: https://github.com/pablostanley/yoinks  
-- Author: [Pablo Stanley](https://github.com/pablostanley) ([@pablostanley](https://github.com/pablostanley))
-
-## Install / run
-
-No install required — from any directory:
+Powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp), bonk works with YouTube, X/Twitter, Instagram, Threads, TikTok, and roughly 1,800 other supported sites. Playlist URLs can download every available clip or one selected entry. Site support is technical compatibility, not permission to download, and bonk is not affiliated with or endorsed by any supported platform.
 
 ```sh
 npx bonk-cli
-npx bonk-cli https://youtu.be/dQw4w9WgXcQ
-npx bonk-cli --theme purple
+npx bonk-cli 'https://youtu.be/dQw4w9WgXcQ'
+bonk --update   # refresh the bundled yt-dlp
 ```
 
-Or install the CLI globally (command is `bonk`):
+## What bonk solves
+
+Streaming platforms commonly deliver **VP9 or AV1** video that Premiere may reject even when the file has an `.mp4` extension.
+
+bonk prefers native **H.264 + AAC** and only re-encodes when required (`veryfast` x264). That keeps compatible downloads fast while still producing dependable edit-ready output.
+
+| What arrived | What you get | Cost |
+|--------------|--------------|------|
+| H.264 + AAC MP4 | keep / rename | basically free |
+| H.264 + other audio | copy video, AAC audio | quick |
+| VP9 / AV1 | H.264 re-encode | slower, only when needed |
+
+## Quick start
+
+**npm package name is `bonk-cli`** (plain `bonk` was already taken). The command is still `bonk`.
 
 ```sh
+# one-shot
+npx bonk-cli
+
+# global
 npm install -g bonk-cli
 bonk
 ```
 
-> The unscoped name `bonk` is already taken on npm (unrelated 2012 package),
-> so this ships as **`bonk-cli`**. The binary is still named `bonk`.
+### Requirements
 
-Requires **Node 18+**, **yt-dlp** (auto-fetched on first run if missing),
-**ffmpeg** (PATH or bundled `ffmpeg-static`), and a **cookies.txt** file
-in the directory you run from (or `~/.bonk/cookies.txt`).
+- Node.js 18 or newer
+- `ffmpeg` on `PATH`, or the bundled `ffmpeg-static` fallback
+- A Netscape-format `cookies.txt` when a site requires authenticated access
 
-## cookies.txt
+### cookies.txt
 
-Bonk always downloads with:
+bonk always runs yt-dlp like this:
 
 ```sh
 yt-dlp --cookies cookies.txt --js-runtimes node --remote-components ejs:github [URL]
 ```
 
-Place a Netscape-format cookies export at one of:
+Put the export at either:
 
-- `./cookies.txt` (current working directory — preferred)
+- `./cookies.txt` (cwd — preferred)
 - `~/.bonk/cookies.txt`
 
-Export cookies with a browser extension (e.g. “Get cookies.txt LOCALLY”)
-while logged into the sites you need.
+Browser extensions such as “Get cookies.txt LOCALLY” can create this file while you are signed in.
 
-## Usage
+> [!CAUTION]
+> A cookies export can contain active session credentials. Treat it like a password: never commit it, upload it, paste it into an issue, or share it with another person. Use only cookies from an account you own or are authorized to operate, revoke exposed sessions immediately, and follow the platform’s account and access rules. This repository ignores `cookies.txt`, but copies outside the repository are still your responsibility.
+
+## Commands
 
 ```sh
-$ bonk https://youtu.be/dQw4w9WgXcQ    # straight to the format picker
-$ bonk                                 # prompts for a url
-$ bonk --theme light                   # light theme
-$ bonk --theme purple                  # purple accent theme
+bonk                              # interactive — drop a link
+bonk <url>                        # jump straight into the flow
+bonk <playlist-url>               # download all or pick one, then choose quality
+bonk --theme dark|light|purple    # start on a palette
+bonk -U / --update                # self-update ~/.bonk/bin/yt-dlp
+bonk -h / -v                      # help / version
 ```
 
-bonk takes over the terminal (full-screen, centered — and restores your
-scrollback on exit). Pick a format with ↑/↓ (or j/k, or number keys) and
-hit enter. `esc` goes back, `^c` quits. Or just use the mouse — the bonk
-button, the format list and the footer hints are all clickable, and
-clicking the logo takes you back home. Files are saved to `~/Downloads`,
-and the file path is printed to your terminal when you're done.
+Inside the TUI:
+
+| Input | Action |
+|-------|--------|
+| `↵` | bonk / confirm |
+| `↑` `↓` | move in lists |
+| `⇥` | pull a link from the clipboard (when offered) |
+| `esc` | back / cancel |
+| `^t` | cycle theme |
+| `^c` | quit |
+| mouse | button, lists, footer, logo (home) |
+
+Files land in **`~/Downloads`**. The final path is printed when you leave the full-screen UI.
 
 ### Themes
 
-| Theme | Look |
-|-------|------|
-| `dark` (default) | Near-black with gold accent |
-| `light` | Warm off-white with amber accent |
-| `purple` | Deep violet with purple accent |
+| Mode | Vibe |
+|------|------|
+| `dark` (default) | near-black + gold |
+| `light` | warm paper + amber |
+| `purple` | deep violet + lilac |
 
-Press `^t` or click the theme control in the footer to cycle
-`dark` → `light` → `purple`. Use `--theme <mode>` to start on one of them.
+### Updating yt-dlp
 
-## Premiere Pro output
-
-YouTube’s high-quality streams are often **VP9 (`vp09`)** or **AV1** inside an
-`.mp4`. Premiere reports that as **“unsupported compression type”**.
-
-Bonk always downloads with the exclusive base command:
+On first need, bonk can install a private binary under `~/.bonk/bin`. Keep it current with:
 
 ```sh
-yt-dlp --cookies cookies.txt --js-runtimes node --remote-components ejs:github [URL]
+bonk --update
+# same as: bonk -U   → runs yt-dlp -U on the bundled binary
 ```
-
-Then it makes the file Premiere-safe **as fast as possible**:
-
-| Source codecs | What bonk does | Speed |
-|---------------|----------------|-------|
-| H.264 + AAC MP4 (preferred) | rename / keep | same as plain yt-dlp |
-| H.264 + other audio | stream-copy video, AAC audio only | fast |
-| VP9 / AV1 | re-encode H.264 `-preset veryfast` | slower (only when needed) |
-
-Format selection prefers **native H.264** so most downloads take the instant path
-and never run a full re-encode.
 
 ## How it works
 
-- **yt-dlp** with a fixed base command (cookies + node JS runtime + remote EJS components).
-- **ffmpeg** for merge + Premiere-safe handling (`ffmpeg-static` fallback).
-- **Ink** — React for the terminal (same stack family as yoinks).
+- **yt-dlp** — fixed base flags (cookies + node runtime + remote EJS)
+- **ffmpeg** — merge + Premiere-safe pass (`ffmpeg-static` fallback)
+- **Ink** — React for the terminal UI
 
-## Development
+## Develop
 
 ```sh
 npm install
-npm run build        # bundle to dist/ with tsup
-npm run dev          # rebuild on change
+npm run build
+npm run dev
 node dist/cli.js <url>
-npm run typecheck
+npm test && npm run typecheck
 ```
 
-## A note on fair use
+## Fair use, copyright, and responsible use
 
-bonk is a personal-archiving / edit-prep tool. Downloading content may
-violate a platform's terms of service — only download what you have the
-right to keep, and be excellent to creators.
+> [!IMPORTANT]
+> This section is a usage notice, not legal advice, a license to third-party content, or a promise that any particular download is lawful. No disclaimer can prevent a platform, rightsholder, regulator, or other person from making a claim. Copyright, contract, privacy, publicity, data-protection, computer-misuse, and anti-circumvention rules vary by country and by facts. If your use may be disputed, commercial, sensitive, or high-risk, obtain permission and advice from a qualified lawyer in your jurisdiction before downloading.
+
+### Authorized uses only
+
+bonk is a general-purpose, local media acquisition and format-preparation tool. It does not grant access to content, transfer copyright, determine ownership, provide a fair-use ruling, or give you permission that a creator, rightsholder, platform, or law has not given you. Use it only when at least one sound legal basis applies, such as:
+
+- you created and own the content;
+- the relevant rightsholder gave you permission;
+- the content is in the public domain;
+- a license—such as an applicable Creative Commons license—allows your exact use and you follow all attribution, share-alike, noncommercial, and no-derivatives conditions;
+- the platform provides an authorized download mechanism and your use stays within its rules; or
+- a limitation or exception under the law that applies to you, such as fair use or fair dealing, genuinely covers the specific use.
+
+Public availability is not the same as public-domain status. Being able to view, stream, or technically retrieve a file does not by itself confer a right to copy, retain, edit, publish, sell, license, train on, perform, or redistribute it. Purchasing access, holding a subscription, crediting the creator, using only part of a work, or using a work for a nonprofit purpose also does not automatically make copying lawful.
+
+### Fair use is a case-by-case defense
+
+In the United States, [17 U.S.C. § 107](https://uscode.house.gov/view.xhtml?req=granuleid:USC-prelim-title17-section107) identifies examples such as criticism, comment, news reporting, teaching, scholarship, and research, but no category is automatically protected. Courts weigh at least four factors together:
+
+1. **Purpose and character:** whether the use is commercial or nonprofit and whether it adds a genuinely new purpose or character instead of substituting for the original.
+2. **Nature of the work:** factual and published material may receive different treatment from highly creative or unpublished material.
+3. **Amount and substantiality:** both how much was taken and whether the portion includes the “heart” of the work. Copying an entire video or playlist can weigh against fair use, although no fixed percentage decides every case.
+4. **Market effect:** whether the use replaces authorized access, licensing, sales, subscriptions, or other actual or reasonably expected markets, including the harm that widespread similar use could cause.
+
+The factors can point in different directions, and only a court can conclusively decide a disputed fair-use claim. “Personal use,” “educational use,” “no copyright intended,” attribution, or the absence of profit is not a complete legal test. Outside the United States, fair dealing and other exceptions may be narrower, purpose-specific, or subject to additional requirements. See the [U.S. Copyright Office Fair Use Index](https://copyright.gov/fair-use/) for official background and case summaries.
+
+### Platform rules and access controls still matter
+
+Each site has its own terms, licenses, technical restrictions, and approved interfaces. Those rules can change and may restrict downloads, automated access, scraping, account-cookie use, reproduction, or redistribution even where content is publicly viewable. You are responsible for reviewing the current terms for every source and for resolving any conflict between platform terms and your intended use.
+
+Do not use bonk to bypass paywalls, subscriptions you have not purchased, digital rights management, encryption, passwords, authentication, geographic controls, rate limits, robots restrictions, or other access or copy controls. Do not use credentials belonging to another person, access private or non-public media without authorization, or defeat a technological measure. In the United States, [17 U.S.C. § 1201](https://uscode.house.gov/view.xhtml?req=%28title%3A17+section%3A1201+edition%3Aprelim%29) can prohibit circumvention separately from copyright infringement, subject to limited statutory and temporary exemptions. A potentially noninfringing end use does not automatically authorize circumvention.
+
+### No unlawful distribution or harmful use
+
+You are solely responsible for the URLs you submit, the credentials you provide, the files you create, and every later use or distribution of those files. In particular, do not use bonk to:
+
+- pirate, mirror, re-upload, sell, sublicense, publicly perform, or distribute content without authorization;
+- remove or falsify attribution, watermarks, copyright notices, license terms, or rights-management information;
+- infringe copyright, trademark, privacy, publicity, contractual, database, moral, or other rights;
+- obtain or spread private, leaked, intimate, exploitative, harassing, defamatory, deceptive, or otherwise unlawful material;
+- collect personal data unlawfully, stalk people, facilitate abuse, or expose minors or vulnerable people to harm;
+- impersonate a creator or imply sponsorship, affiliation, ownership, or endorsement that does not exist; or
+- help another person do anything prohibited above.
+
+If you share a lawful excerpt or derivative work, use no more source material than your purpose reasonably requires, add meaningful original context where relevant, preserve required notices, provide proper attribution, link to the authorized source when appropriate, and avoid replacing demand for the original. Delete files when permission expires, a governing license requires deletion, or continued possession becomes unlawful.
+
+### Project role and third-party misuse
+
+bonk runs on the user’s device. The project and its maintainers do not host, select, supply, index, verify, monitor, or distribute the media that users choose to access, and they cannot control copies after users create them. References to platforms describe interoperability only; all platform names and trademarks belong to their respective owners.
+
+The availability of source code or a technical capability is not encouragement, authorization, or assistance to infringe rights. Users must make their own lawful-use determination before each operation and assume responsibility for their conduct. To the maximum extent permitted by applicable law, the software is provided under the warranty and liability terms in the [MIT License](LICENSE). Those terms do not override rights or obligations that cannot legally be waived, and this notice does not guarantee that a maintainer will avoid complaints, demands, takedowns, investigations, or litigation.
 
 ## Credits
 
-- **Inspired by** [yoinks](https://github.com/pablostanley/yoinks) by
-  [Pablo Stanley](https://github.com/pablostanley) — original terminal video
-  downloader UX (paste, pick, download).
-- **yt-dlp** — download engine for 1,800+ sites.
-- **Ink** — React for CLIs.
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) — the download engine
+- [Ink](https://github.com/vadimdemedes/ink) — terminal React
+- Nods to [yoinks](https://github.com/pablostanley/yoinks) by [Pablo Stanley](https://github.com/pablostanley) for popularizing a full-screen paste → pick → download flow in the terminal
 
 ## License
 

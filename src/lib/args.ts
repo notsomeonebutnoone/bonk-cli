@@ -3,13 +3,15 @@ import {isThemeMode, type ThemeMode} from '../theme.js'
 export type CliArgs = {
   help: boolean
   version: boolean
+  /** Update the bundled yt-dlp binary (`yt-dlp -U`). */
+  update: boolean
   initialUrl?: string
   themeMode?: ThemeMode
   error?: string
 }
 
 export function parseArgs(args: string[]): CliArgs {
-  const result: CliArgs = {help: false, version: false}
+  const result: CliArgs = {help: false, version: false, update: false}
   const positional: string[] = []
 
   for (let index = 0; index < args.length; index++) {
@@ -18,6 +20,8 @@ export function parseArgs(args: string[]): CliArgs {
       result.help = true
     } else if (arg === '-v' || arg === '--version') {
       result.version = true
+    } else if (arg === '-U' || arg === '--update') {
+      result.update = true
     } else if (arg === '--theme') {
       const value = args[++index]
       if (!value) return {...result, error: '--theme needs a value: dark, light, or purple'}
@@ -35,6 +39,9 @@ export function parseArgs(args: string[]): CliArgs {
   }
 
   if (positional.length > 1) return {...result, error: 'expected a single url'}
+  if (result.update && positional.length > 0) {
+    return {...result, error: '--update does not take a url'}
+  }
   result.initialUrl = positional[0]
   return result
 }
