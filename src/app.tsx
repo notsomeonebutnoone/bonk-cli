@@ -1,12 +1,11 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react'
 import os from 'node:os'
-import path from 'node:path'
 import {Box, Text, useApp, useInput, useStdout} from 'ink'
 import SelectInput, {type IndicatorProps, type ItemProps} from 'ink-select-input'
 import Spinner from 'ink-spinner'
 import {FramedInput} from './components/framed-input.js'
 import {FullScreen} from './components/fullscreen.js'
-import {Logo} from './components/logo.js'
+import {Logo, LOGO_HEIGHT} from './components/logo.js'
 import {Panel} from './components/panel.js'
 import {ProgressBar} from './components/progress-bar.js'
 import {Shortcuts} from './components/shortcuts.js'
@@ -15,6 +14,7 @@ import {clickTargetAt, findFrameRow, frameRowSpan, type ClickTarget} from './lib
 import {formatBytes, formatDuration, formatEta, formatSpeed, shortenPath, truncate, wrapText} from './lib/format.js'
 import {addToHistory, loadHistory} from './lib/history.js'
 import {detectPlatform, isProbablyUrl, type Platform} from './lib/platforms.js'
+import {loadDownloadDirectory, saveDownloadDirectory} from './lib/settings.js'
 import {useMouseClick} from './lib/use-mouse-click.js'
 import {nextThemeMode, ThemeProvider, type ThemeMode, useTheme} from './theme.js'
 import {
@@ -32,12 +32,11 @@ import {
   type VideoInfo,
 } from './lib/ytdlp.js'
 
-const OUT_DIR = path.join(os.homedir(), 'Downloads')
-const BONK_BUTTON = 'bonk'
+const BONK_BUTTON = 'BONK'
 const DONE_LABEL = '↵ hit another'
 const DOWNLOAD_ALL_LABEL = '▶ download all clips'
-const TAGLINE = 'drop a link. bonk it. premiere won’t flinch.'
-const SUBLINE = 'youtube · x · ig · threads · tiktok · ~1800 sites · edit-ready mp4'
+const TAGLINE = 'MEDIA IN. EDIT-READY OUT.'
+const SUBLINE = 'youtube  /  x  /  instagram  /  threads  /  tiktok  /  snapchat'
 
 const choiceLabel = (choice: DownloadChoice) => `${choice.kind === 'audio' ? '♪ ' : '▶ '}${choice.label}`
 
@@ -52,7 +51,7 @@ function ChoiceIndicator({isSelected}: IndicatorProps) {
   const theme = useTheme()
   return (
     <Box marginRight={1}>
-      <Text color={theme.accent}>{isSelected ? '❯' : ' '}</Text>
+      <Text color={theme.accent}>{isSelected ? '◆' : '·'}</Text>
     </Box>
   )
 }
@@ -60,7 +59,11 @@ function ChoiceIndicator({isSelected}: IndicatorProps) {
 function ChoiceItem({isSelected, label}: ItemProps) {
   const theme = useTheme()
   return (
-    <Text color={isSelected ? theme.accent : theme.primary} bold={isSelected}>
+    <Text
+      color={isSelected ? theme.primary : theme.muted}
+      backgroundColor={isSelected ? theme.surfaceAlt : undefined}
+      bold={isSelected}
+    >
       {label}
     </Text>
   )
@@ -103,6 +106,7 @@ type Phase =
   | {name: 'probing'; status: string}
   | {name: 'picking-video'}
   | {name: 'picking'}
+  | {name: 'location'; error?: string}
   | {
       name: 'downloading'
       choice: DownloadChoice
@@ -133,6 +137,11 @@ const HINTS: Record<Phase['name'], Array<[string, string]>> = {
     ['↑↓', 'scroll'],
     ['↵', 'bonk'],
     ['esc', 'back'],
+    ['^c', 'bail'],
+  ],
+  location: [
+    ['↵', 'set folder'],
+    ['esc', 'cancel'],
     ['^c', 'bail'],
   ],
   downloading: [
@@ -182,6 +191,8 @@ function AppContent({
   const {stdout} = useStdout()
   const [url, setUrl] = useState(initialUrl ?? '')
   const [urlInput, setUrlInput] = useState('')
+  const [downloadDir, setDownloadDir] = useState(loadDownloadDirectory)
+  const [locationInput, setLocationInput] = useState('')
   const [history, setHistory] = useState(loadHistory)
   const [platform, setPlatform] = useState<Platform>()
   const [info, setInfo] = useState<VideoInfo>()
@@ -194,14 +205,16 @@ function AppContent({
   const playlistUrlRef = useRef<string | undefined>(undefined)
   const infoJsonRef = useRef<string | undefined>(undefined)
   const abortRef = useRef<AbortController | undefined>(undefined)
+  const locationReturnRef = useRef<Phase>({name: 'input'})
   const [phase, setPhase] = useState<Phase>(initialUrl ? {name: 'probing', status: 'cracking knuckles…'} : {name: 'input'})
 
   const columns = stdout?.columns && stdout.columns > 0 ? stdout.columns : 80
   const rows = stdout?.rows && stdout.rows > 0 ? stdout.rows : 24
-  const boxWidth = Math.max(14, Math.min(64, columns - 6))
+  const boxWidth = Math.max(16, Math.min(72, columns - 6))
   const contentWidth = Math.max(10, Math.min(columns - 4, 78))
-  // leave room for logo, title, panel chrome, and footer hints
-  const listLimit = Math.max(4, Math.min(12, rows - 14))
+  // leave room for the six-line wordmark, panel chrome, and footer keycaps
+  const listLimit = Math.max(3, Math.min(8, rows - 20))
+  const showSubline = rows >= 27
   const playlistDuration = playlist?.entries.every(entry => entry.duration && entry.duration > 0)
     ? playlist.entries.reduce((total, entry) => total + (entry.duration ?? 0), 0)
     : undefined
@@ -290,10 +303,40 @@ function AppContent({
     resetToInput()
   }, [playlist, resetToInput])
 
+  const openLocationPicker = useCallback(() => {
+    if (phase.name === 'probing' || phase.name === 'downloading' || phase.name === 'location') return
+    locationReturnRef.current = phase
+    setLocationInput(downloadDir)
+    setPhase({name: 'location'})
+  }, [downloadDir, phase])
+
+  const closeLocationPicker = useCallback(() => {
+    setPhase(locationReturnRef.current)
+  }, [])
+
+  const handleLocationSubmit = (value: string) => {
+    try {
+      const resolved = saveDownloadDirectory(value)
+      setDownloadDir(resolved)
+      setPhase(locationReturnRef.current)
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      setPhase({name: 'location', error: `couldn’t use that folder — ${detail}`})
+    }
+  }
+
   useInput(
     (input, key) => {
       if (key.ctrl && input === 't') {
         cycleTheme()
+        return
+      }
+      if (key.ctrl && input === 'l') {
+        openLocationPicker()
+        return
+      }
+      if (key.escape && phase.name === 'location') {
+        closeLocationPicker()
         return
       }
       if (key.escape && phase.name === 'picking') backFromFormatPicker()
@@ -363,7 +406,7 @@ function AppContent({
             ffmpegLocation,
             url: videoUrl,
             choice,
-            outDir: OUT_DIR,
+            outDir: downloadDir,
             title,
           }
           try {
@@ -399,9 +442,9 @@ function AppContent({
             await downloadOne(entry.url, result.info.title || entry.title, result.infoJsonPath)
           }
           const playlistUrl = playlistUrlRef.current ?? url
-          onOutcome({filepath: OUT_DIR})
+          onOutcome({filepath: downloadDir})
           setHistory(addToHistory(playlistUrl))
-          setPhase({name: 'done', filepath: OUT_DIR, downloadedCount: playlist.entries.length})
+          setPhase({name: 'done', filepath: downloadDir, downloadedCount: playlist.entries.length})
         } else {
           const filepath = await downloadOne(url, info?.title, infoJsonRef.current)
           onOutcome({filepath})
@@ -416,6 +459,9 @@ function AppContent({
   }
 
   let hints: Array<[string, string]> = [...HINTS[phase.name], ['^t', `skin:${theme.mode}`]]
+  if (phase.name !== 'probing' && phase.name !== 'downloading' && phase.name !== 'location') {
+    hints = [hints[0]!, ['^l', 'location'], ...hints.slice(1)]
+  }
   if (phase.name === 'input' && history.length > 0) {
     hints = [hints[0]!, ['↑', 'recent'], ...hints.slice(1)]
   }
@@ -426,13 +472,16 @@ function AppContent({
   const hintAction = (key: string): (() => void) | undefined => {
     if (key === '^c') return () => exit()
     if (key === '^t') return cycleTheme
+    if (key === '^l') return openLocationPicker
     if (key === 'esc') {
       if (phase.name === 'probing' || phase.name === 'downloading') return cancelRun
+      if (phase.name === 'location') return closeLocationPicker
       if (phase.name === 'picking') return backFromFormatPicker
       return resetToInput
     }
     if (key === '↵') {
       if (phase.name === 'input') return () => handleUrlSubmit(urlInput)
+      if (phase.name === 'location') return () => handleLocationSubmit(locationInput)
       if (phase.name === 'picking-video') return () => handleEntryPick({value: entryHighlightRef.current})
       if (phase.name === 'picking') return () => handlePick({value: highlightRef.current})
       if (phase.name === 'error' || phase.name === 'done') return resetToInput
@@ -442,7 +491,10 @@ function AppContent({
   const clickTargets: ClickTarget[] = []
   if (phase.name === 'input') {
     // the frame button rows above/below the label are part of the button
-    clickTargets.push({match: `  ${BONK_BUTTON}  `, padY: 1, action: () => handleUrlSubmit(urlInput)})
+    clickTargets.push({match: ` ${BONK_BUTTON} ↗ `, padY: 1, action: () => handleUrlSubmit(urlInput)})
+  }
+  if (phase.name === 'location') {
+    clickTargets.push({match: ' SET ↗ ', padY: 1, action: () => handleLocationSubmit(locationInput)})
   }
   if (phase.name === 'picking-video' && playlist) {
     const labelWidth = Math.max(20, Math.min(44, contentWidth - 34))
@@ -464,14 +516,18 @@ function AppContent({
   }
   for (const [key, label] of hints) {
     const action = hintAction(key)
-    if (action) clickTargets.push({match: `${key} ${label}`, action})
+    if (action) clickTargets.push({match: `${key}  ${label}`, action})
   }
 
   useMouseClick(
     (x, y) => {
-      // the logo takes you home — it's the 3 rows one gap above the tagline
+      // the logo takes you home — it sits one gap above the tagline
       const taglineRow = findFrameRow(TAGLINE)
-      if (taglineRow > 3 && y - 1 >= taglineRow - 4 && y - 1 <= taglineRow - 2) {
+      if (
+        taglineRow > LOGO_HEIGHT &&
+        y - 1 >= taglineRow - LOGO_HEIGHT - 1 &&
+        y - 1 <= taglineRow - 2
+      ) {
         const span = frameRowSpan(y - 1)
         if (span && x >= span[0] - 1 && x <= span[1] + 1) {
           if (phase.name === 'probing' || phase.name === 'downloading') cancelRun()
@@ -486,21 +542,21 @@ function AppContent({
 
   return (
     <FullScreen>
-      <Logo />
+      <Logo compact={columns < 64} />
       <Gap />
-      <Text color={theme.primary}>{TAGLINE}</Text>
-      <Text color={theme.muted}>{SUBLINE}</Text>
+      <Text color={theme.primary} bold>{TAGLINE}</Text>
+      {showSubline ? <Text color={theme.muted}>{SUBLINE}</Text> : null}
       <Gap />
 
       {phase.name === 'input' && (
         <Box flexDirection="column" alignItems="center">
-          <FramedInput title="Drop a link" width={boxWidth} button={BONK_BUTTON}>
+          <FramedInput title="Source URL" width={boxWidth} button={BONK_BUTTON}>
             <TextInput
               value={urlInput}
               onChange={setUrlInput}
               onSubmit={handleUrlSubmit}
-              placeholder="https://…  (or a whole playlist)"
-              width={boxWidth - 6}
+              placeholder="Paste a video or playlist link…"
+              width={Math.max(10, boxWidth - 17)}
               history={history}
               submitOnPaste={isProbablyUrl}
               onTab={() => {
@@ -514,15 +570,38 @@ function AppContent({
             <Text color={theme.muted}>clipboard’s holding a link — ⇥ to snag it</Text>
           ) : clipboardAccepted ? (
             <Text color={theme.muted}>snagged from clipboard — ↵ to bonk</Text>
-          ) : null}
+          ) : (
+            <Text color={theme.muted}>
+              saves to · {shortenPath(downloadDir, os.homedir(), 48)}
+            </Text>
+          )}
         </Box>
       )}
 
       {phase.name === 'probing' && (
         <Box flexDirection="column" alignItems="center">
-          <FramedInput title={platform ? platform.label : 'Drop a link'} width={boxWidth} button={BONK_BUTTON} buttonDim>
+          <FramedInput title={platform ? `${platform.label} source` : 'Source URL'} width={boxWidth} button={BONK_BUTTON} buttonDim>
             <Text color={theme.muted}>{url.length > boxWidth - 8 ? `${url.slice(0, boxWidth - 9)}…` : url}</Text>
           </FramedInput>
+        </Box>
+      )}
+
+      {phase.name === 'location' && (
+        <Box flexDirection="column" alignItems="center">
+          <FramedInput title="Download folder" width={boxWidth} button="SET">
+            <TextInput
+              value={locationInput}
+              onChange={setLocationInput}
+              onSubmit={handleLocationSubmit}
+              placeholder="~/Downloads"
+              width={Math.max(10, boxWidth - 16)}
+            />
+          </FramedInput>
+          {phase.error ? (
+            <Text color={theme.accentSecondary}>✗ {phase.error}</Text>
+          ) : (
+            <Text color={theme.muted}>relative paths start from {truncate(process.cwd(), 42)}</Text>
+          )}
         </Box>
       )}
 
@@ -595,6 +674,7 @@ function AppContent({
             <SelectInput
               indicatorComponent={ChoiceIndicator}
               itemComponent={ChoiceItem}
+              limit={listLimit}
               items={choices.map((choice, index) => ({
                 key: String(index),
                 label: choiceLabel(choice),
