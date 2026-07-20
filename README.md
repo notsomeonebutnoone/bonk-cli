@@ -117,10 +117,18 @@ bonk --update
 ## Develop
 
 ```sh
+git clone https://github.com/notsomeonebutnoone/bonk-cli.git
+cd bonk-cli
 npm install
-npm run build
+npm start -- <url>
+```
+
+`npm start` automatically builds `dist/cli.js` before launching the CLI, so a
+separate build step is not required after cloning. For active development and
+validation:
+
+```sh
 npm run dev
-node dist/cli.js <url>
 npm test && npm run typecheck
 ```
 
